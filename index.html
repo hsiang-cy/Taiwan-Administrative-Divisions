@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣行政區劃查詢</title>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .search-bar {
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .search-input-group {
+            display: flex;
+            width: 100%;
+        }
+        .search-input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+        .search-button {
+            margin-left: 10px;
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .search-button:hover {
+            background-color: #45a049;
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: -8px;
+            display: none;
+        }
+        .search-results:not(:empty) {
+            display: block;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+        .search-result-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .search-result-item:hover {
+            background-color: #f0f9f0;
+        }
+        .search-result-category {
+            font-weight: bold;
+            color: #333;
+            margin: 10px 0 5px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .left-panel {
+            flex: 1;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .right-panel {
+            flex: 1;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .selectors {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: flex-start;
+        }
+        .form-group {
+            flex: 1;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #444;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            background-color: #f9f9f9;
+        }
+        select:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+        #results {
+            margin-top: 10px;
+        }
+        .district-item {
+            margin-bottom: 8px;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            line-height: 1.6;
+        }
+        .district-item h3 {
+            margin-top: 0;
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        #jsonUrl {
+            display: block;
+            margin: 20px auto;
+            text-align: center;
+            color: #666;
+        }
+        .info-title {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .json-viewer {
+            margin-top: 30px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .json-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .json-header h2 {
+            margin: 0;
+        }
+        .copy-button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .copy-button:hover {
+            background-color: #45a049;
+        }
+        .json-content {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            overflow: auto;
+            max-height: 500px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            margin: 0;
+        }
+        .string { color: #008000; }
+        .number { color: #0000ff; }
+        .boolean { color: #b22222; }
+        .null { color: #808080; }
+        .key { color: #a52a2a; }
+        
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .left-panel, .right-panel {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>台灣行政區劃查詢系統</h1>
+    
+    <div class="main-wrapper">
+        <div class="search-bar">
+            <div class="search-input-group">
+                <input type="text" id="searchInput" class="search-input" placeholder="輸入縣市或行政區名稱..." oninput="searchDistrict()">
+                <button id="searchButton" class="search-button" onclick="searchDistrict(true)">搜尋</button>
+            </div>
+            <div id="searchResults" class="search-results"></div>
+        </div>
+        
+        <div class="container">
+            <div class="left-panel">
+                <div class="form-group">
+                    <label for="countySelect">選擇縣市:</label>
+                    <select id="countySelect" onchange="loadDistricts()">
+                        <option value="">-- 請選擇縣市 --</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="districtSelect">選擇行政區:</label>
+                    <select id="districtSelect" onchange="showDistrictInfo()">
+                        <option value="">-- 請先選擇縣市 --</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <h2 class="info-title">行政區資訊</h2>
+                <div id="results">尚未選擇行政區</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="json-viewer">
+        <div class="json-header">
+            <h2>完整JSON資料</h2>
+            <button id="copyButton" class="copy-button" onclick="copyJsonData()">複製JSON</button>
+        </div>
+        <pre id="jsonDisplay" class="json-content"></pre>
+    </div>
+    
+    <p id="jsonUrl">資料來源: <a href="taiwan-districts.json" target="_blank">taiwan-districts.json</a></p>
+    
+    <script>
+        // 全域變數存儲JSON資料
+        let districtsData = [];
+        // 搜尋延遲計時器
+        let searchTimeout = null;
+        
+        // 當頁面載入完成時，載入JSON資料
+        document.addEventListener('DOMContentLoaded', function() {
+            loadJsonData();
+            
+            // 添加搜尋框的Enter鍵事件監聽
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchDistrict(true);
+                }
+            });
+            
+            // 點擊頁面其他區域時關閉搜尋結果
+            document.addEventListener('click', function(e) {
+                const searchBar = document.querySelector('.search-bar');
+                const searchResults = document.getElementById('searchResults');
+                
+                if (!searchBar.contains(e.target)) {
+                    searchResults.innerHTML = '';
+                }
+            });
+        });
+        
+        // 載入JSON資料函數
+        function loadJsonData() {
+            fetch('taiwan-districts.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('無法載入JSON資料，HTTP錯誤：' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    districtsData = data;
+                    populateCounties();
+                    displayJsonData(data);
+                })
+                .catch(error => {
+                    console.error('載入資料時發生錯誤:', error);
+                    document.getElementById('results').innerHTML = 
+                        `<p style="color: red;">載入資料時發生錯誤: ${error.message}</p>
+                         <p>請確認 taiwan-districts.json 檔案已放置在根目錄且可被訪問。</p>`;
+                });
+        }
+        
+        // 顯示格式化的JSON數據
+        function displayJsonData(data) {
+            const jsonDisplay = document.getElementById('jsonDisplay');
+            const formattedJson = JSON.stringify(data, null, 2);
+            
+            // 高亮顯示
+            const highlighted = formattedJson
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                    let cls = 'number';
+                    if (/^"/.test(match)) {
+                        if (/:$/.test(match)) {
+                            cls = 'key';
+                        } else {
+                            cls = 'string';
+                        }
+                    } else if (/true|false/.test(match)) {
+                        cls = 'boolean';
+                    } else if (/null/.test(match)) {
+                        cls = 'null';
+                    }
+                    return '<span class="' + cls + '">' + match + '</span>';
+                });
+            
+            jsonDisplay.innerHTML = highlighted;
+        }
+        
+        // 複製JSON數據到剪貼板
+        function copyJsonData() {
+            const jsonString = JSON.stringify(districtsData, null, 2);
+            
+            navigator.clipboard.writeText(jsonString).then(() => {
+                const copyButton = document.getElementById('copyButton');
+                const originalText = copyButton.textContent;
+                
+                copyButton.textContent = '已複製！';
+                copyButton.style.backgroundColor = '#45a049';
+                
+                setTimeout(() => {
+                    copyButton.textContent = originalText;
+                    copyButton.style.backgroundColor = '#4CAF50';
+                }, 2000);
+            }).catch(err => {
+                console.error('複製失敗: ', err);
+                alert('複製失敗，請手動選擇文字並複製。');
+            });
+        }
+        
+        // 填充縣市下拉選單
+        function populateCounties() {
+            const countySelect = document.getElementById('countySelect');
+            
+            // 清空現有選項
+            countySelect.innerHTML = '<option value="">-- 請選擇縣市 --</option>';
+            
+            // 添加所有縣市
+            districtsData.forEach((county, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = county.county;
+                countySelect.appendChild(option);
+            });
+        }
+        
+        // 根據選擇的縣市載入行政區
+        function loadDistricts() {
+            const countyIndex = document.getElementById('countySelect').value;
+            const districtSelect = document.getElementById('districtSelect');
+            
+            // 清空現有選項
+            districtSelect.innerHTML = '<option value="">-- 請選擇行政區 --</option>';
+            
+            // 如果未選擇縣市，直接返回
+            if (countyIndex === '') {
+                document.getElementById('results').innerHTML = '尚未選擇行政區';
+                return;
+            }
+            
+            // 添加所有行政區
+            const districts = districtsData[countyIndex].districts;
+            districts.forEach((district, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = district.name;
+                districtSelect.appendChild(option);
+            });
+            
+            // 更新行政區資訊顯示
+            showCountyInfo(countyIndex);
+        }
+        
+        // 顯示縣市資訊
+        function showCountyInfo(countyIndex) {
+            const county = districtsData[countyIndex];
+            const resultsDiv = document.getElementById('results');
+            
+            let htmlContent = `
+                <div class="district-item">
+                    <h3>縣市資訊</h3>
+                    <p><strong>中文名稱:</strong> ${county.county}</p>
+                    <p><strong>英文名稱:</strong> ${county.englishName}</p>
+                    <p><strong>行政區數量:</strong> ${county.districts.length}個</p>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = htmlContent;
+        }
+        
+        // 顯示選中的行政區資訊
+        function showDistrictInfo() {
+            const countyIndex = document.getElementById('countySelect').value;
+            const districtIndex = document.getElementById('districtSelect').value;
+            const resultsDiv = document.getElementById('results');
+            
+            // 如果未選擇行政區，顯示縣市資訊
+            if (districtIndex === '') {
+                if (countyIndex !== '') {
+                    showCountyInfo(countyIndex);
+                } else {
+                    resultsDiv.innerHTML = '尚未選擇行政區';
+                }
+                return;
+            }
+            
+            const county = districtsData[countyIndex];
+            const district = county.districts[districtIndex];
+            
+            let htmlContent = `
+                <div class="district-item">
+                    <h3>行政區資訊</h3>
+                    <p><strong>所屬縣市:</strong> ${county.county}</p>
+                    <p><strong>中文名稱:</strong> ${district.name}</p>
+                    <p><strong>英文名稱:</strong> ${district.englishName}</p>
+            `;
+            
+            // 如果有替代英文名稱，也顯示出來
+            if (district.alternativeEnglishName) {
+                htmlContent += `<p><strong>替代英文名稱:</strong> ${district.alternativeEnglishName}</p>`;
+            }
+            
+            htmlContent += '</div>';
+            resultsDiv.innerHTML = htmlContent;
+        }
+        
+        // 搜尋功能
+        function searchDistrict(immediate = false) {
+            // 清除之前的延遲
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            
+            // 如果不是立即執行，則設定200毫秒延遲
+            if (!immediate) {
+                searchTimeout = setTimeout(() => searchDistrict(true), 200);
+                return;
+            }
+            
+            const searchTerm = document.getElementById('searchInput').value.trim();
+            const searchResultsDiv = document.getElementById('searchResults');
+            
+            // 清空搜尋結果
+            searchResultsDiv.innerHTML = '';
+            
+            if (!searchTerm) {
+                return;
+            }
+            
+            // 搜尋結果
+            let foundCounties = [];
+            let foundDistricts = [];
+            
+            // 搜尋縣市
+            districtsData.forEach((county, countyIndex) => {
+                if (county.county.includes(searchTerm) || 
+                    county.englishName.toLowerCase().includes(searchTerm.toLowerCase())) {
+                    foundCounties.push({ countyIndex, county });
+                }
+                
+                // 搜尋行政區
+                county.districts.forEach((district, districtIndex) => {
+                    if (district.name.includes(searchTerm) || 
+                        district.englishName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (district.alternativeEnglishName && 
+                         district.alternativeEnglishName.toLowerCase().includes(searchTerm.toLowerCase()))) {
+                        foundDistricts.push({ countyIndex, districtIndex, county, district });
+                    }
+                });
+            });
+            
+            // 顯示搜尋結果
+            let resultsHTML = '';
+            
+            if (foundCounties.length > 0) {
+                resultsHTML += '<div class="search-result-category">縣市:</div>';
+                foundCounties.forEach(item => {
+                    resultsHTML += `<div class="search-result-item" onclick="selectCounty(${item.countyIndex})">${item.county.county}</div>`;
+                });
+            }
+            
+            if (foundDistricts.length > 0) {
+                resultsHTML += '<div class="search-result-category">行政區:</div>';
+                foundDistricts.forEach(item => {
+                    resultsHTML += `<div class="search-result-item" onclick="selectDistrict(${item.countyIndex}, ${item.districtIndex})">${item.county.county} - ${item.district.name}</div>`;
+                });
+            }
+            
+            if (foundCounties.length === 0 && foundDistricts.length === 0) {
+                resultsHTML = `<div style="padding: 10px; color: #888;">找不到符合 "${searchTerm}" 的結果</div>`;
+            }
+            
+            searchResultsDiv.innerHTML = resultsHTML;
+        }
+        
+        // 選擇縣市的輔助函數
+        function selectCounty(countyIndex) {
+            document.getElementById('countySelect').value = countyIndex;
+            loadDistricts();
+            // 清空搜尋框和搜尋結果
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+        }
+        
+        // 選擇行政區的輔助函數
+        function selectDistrict(countyIndex, districtIndex) {
+            selectCounty(countyIndex);
+            document.getElementById('districtSelect').value = districtIndex;
+            showDistrictInfo();
+            // 清空搜尋框和搜尋結果
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+        }
+        
+        // 提供完整JSON資料的函數 (供後端API使用)
+        function getFullData() {
+            return districtsData;
+        }
+        
+        // 根據縣市名稱獲取行政區的函數 (供後端API使用)
+        function getDistrictsByCounty(countyName) {
+            const county = districtsData.find(c => c.county === countyName || c.englishName === countyName);
+            return county ? county.districts : null;
+        }
+        
+        // 獲取特定縣市和行政區資訊的函數 (供後端API使用)
+        function getDistrictInfo(countyName, districtName) {
+            const county = districtsData.find(c => c.county === countyName || c.englishName === countyName);
+            if (!county) return null;
+            
+            const district = county.districts.find(d => d.name === districtName || d.englishName === districtName);
+            return district;
+        }
+    </script>
+</body>
+</html>
